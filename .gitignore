@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# 测试 / 工具缓存
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 模型缓存 / 本地数据(别把真实数据提交进来!)
+.cache/
+*.bin
+*.safetensors
+
+# 环境与密钥
+.env
+.env.*

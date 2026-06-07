@@ -1,0 +1,40 @@
+[project]
+name = "med-rag-assistant"
+version = "0.1.0"
+description = "本地自托管的医疗文档 RAG 问答助手(自学项目)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40",
+    "numpy>=1.24",
+    "pypdf>=4.0",
+]
+
+[project.optional-dependencies]
+# 重依赖:真实 embedding 模型。CI 与单元测试不需要它(用 hashing 假实现)。
+embeddings = ["sentence-transformers>=3.0"]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "pre-commit>=3.5",
+]
+
+[project.scripts]
+medrag = "medrag.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

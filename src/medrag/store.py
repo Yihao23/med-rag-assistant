@@ -85,7 +85,7 @@ class QdrantVectorStore:
         self._client = QdrantClient(location)
 
         dim = int(self._embedder.embed(["dim probe"]).shape[1])
-        if not self._client.collection_exists(collection): 
+        if not self._client.collection_exists(collection):
             self._client.create_collection(
                 collection_name=self._collection,
                 vectors_config=VectorParams(size=dim, distance=Distance.COSINE),

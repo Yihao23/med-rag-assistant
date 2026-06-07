@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from .embeddings import Embedder, HashingEmbedder, SentenceTransformerEmbedder
-from .llm import LLM, AnthropicLLM, EchoLLM
+from .llm import LLM, AnthropicLLM, EchoLLM, OpenAICompatLLM
 from .loader import load_directory
 from .pipeline import RagPipeline
 from .store import InMemoryVectorStore, QdrantVectorStore
@@ -32,6 +32,8 @@ def _make_llm(name: str) -> LLM:
         return EchoLLM()
     if name == "anthropic":
         return AnthropicLLM()
+    if name == "vllm":
+        return OpenAICompatLLM()
     raise ValueError(f"未知 llm:{name}")
 
 
@@ -60,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--llm",
         default="anthropic",
-        choices=["anthropic", "echo"],
+        choices=["anthropic", "echo", "vllm"],
         help="LLM 实现(echo 不调用真实模型)",
     )
 

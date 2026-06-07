@@ -52,3 +52,44 @@ class AnthropicLLM:
             messages=[{"role": "user", "content": user}],
         )
         return "".join(block.text for block in response.content if block.type == "text")
+
+
+class OpenAICompatLLM:
+    """调用任何 OpenAI 兼容的聊天端点(vLLM / Ollama / LM Studio ...)。
+
+    vLLM 用 `vllm serve <模型>` 启动后,在 /v1 暴露 OpenAI 兼容接口。
+    地址、模型、key 都可用环境变量覆盖,默认连本地 vLLM。
+
+    测试时可注入一个假 client(client 参数),从而无需启动真实服务器。
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        client=None,
+    ) -> None:
+        self._model = model or os.environ.get("MEDRAG_VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        if client is not None:
+            self._client = client  # 注入假 client —— 测试用,不碰网络
+        else:
+            try:
+                from openai import OpenAI
+            except ImportError as exc:  # pragma: no cover
+                raise ImportError("需要 openai,请运行:pip install openai") from exc
+            self._client = OpenAI(
+                base_url=base_url or os.environ.get("MEDRAG_VLLM_URL", "http://localhost:8000/v1"),
+                api_key=api_key or os.environ.get("MEDRAG_VLLM_KEY", "not-needed"),
+            )
+
+    def generate(self, *, system: str, user: str) -> str:
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+        return response.choices[0].message.content or ""

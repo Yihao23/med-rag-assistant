@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from .chunking import chunk_text
 from .llm import LLM
-from .store import InMemoryVectorStore, SearchResult
+from .store import SearchResult, VectorStore
 
 SYSTEM_PROMPT = (
     "你是一个严谨的医疗文档助手。只根据下面提供的【上下文】回答问题。"
@@ -31,7 +31,7 @@ def build_prompt(question: str, results: list[SearchResult]) -> str:
 
 
 class RagPipeline:
-    def __init__(self, store: InMemoryVectorStore, llm: LLM) -> None:
+    def __init__(self, store: VectorStore, llm: LLM) -> None:
         self._store = store
         self._llm = llm
 

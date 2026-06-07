@@ -16,7 +16,7 @@ from .embeddings import Embedder, HashingEmbedder, SentenceTransformerEmbedder
 from .llm import LLM, AnthropicLLM, EchoLLM
 from .loader import load_directory
 from .pipeline import RagPipeline
-from .store import InMemoryVectorStore
+from .store import InMemoryVectorStore, QdrantVectorStore
 
 
 def _make_embedder(name: str) -> Embedder:
@@ -33,6 +33,14 @@ def _make_llm(name: str) -> LLM:
     if name == "anthropic":
         return AnthropicLLM()
     raise ValueError(f"未知 llm:{name}")
+
+
+def _make_store(name: str, embedder: Embedder):
+    if name == "memory":
+        return InMemoryVectorStore(embedder)
+    if name == "qdrant":
+        return QdrantVectorStore(embedder)
+    raise ValueError(f"未知 vector store:{name}")
 
 
 def _print_answer(answer) -> None:
@@ -55,6 +63,13 @@ def main(argv: list[str] | None = None) -> int:
         choices=["anthropic", "echo"],
         help="LLM 实现(echo 不调用真实模型)",
     )
+
+    parser.add_argument(
+        "--store",
+        default="memory",
+        choices=["memory", "qdrant"],
+        help="向量库实现(memory 零依赖,qdrant 基于 Qdrant,包并运行本地或远程 Qdrant 实例)",
+    )
     parser.add_argument(
         "--embedder",
         default="sentence-transformers",
@@ -72,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"目录 {args.data} 里没有可加载的文档(支持 .txt/.md/.pdf)", file=sys.stderr)
         return 1
 
-    store = InMemoryVectorStore(_make_embedder(args.embedder))
+    store = _make_store(args.store, _make_embedder(args.embedder))
     pipeline = RagPipeline(store, _make_llm(args.llm))
     n_chunks = pipeline.index(documents)
     print(f"已索引 {len(documents)} 个文档,共 {n_chunks} 个文本块。")

@@ -13,11 +13,13 @@ dependencies = [
 [project.optional-dependencies]
 # 重依赖:真实 embedding 模型。CI 与单元测试不需要它(用 hashing 假实现)。
 embeddings = ["sentence-transformers>=3.0"]
+qdrant = ["qdrant-client>=1.7"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "pre-commit>=3.5",
 ]
+
 
 [project.scripts]
 medrag = "medrag.cli:main"

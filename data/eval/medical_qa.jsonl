@@ -1,0 +1,6 @@
+{"question": "心血管病例的主要诊断是什么?", "expected_source": "sample_report.txt", "expected_keywords": ["STEMI", "心肌梗死"]}
+{"question": "下壁心梗用了哪些抗血小板药物?", "expected_source": "sample_report.txt", "expected_keywords": ["阿司匹林", "替格瑞洛"]}
+{"question": "糖尿病病人的糖化血红蛋白是多少?", "expected_source": "diabetes_report.txt", "expected_keywords": ["9.1", "HbA1c"]}
+{"question": "2 型糖尿病开始用什么药物治疗?", "expected_source": "diabetes_report.txt", "expected_keywords": ["二甲双胍"]}
+{"question": "手腕骨折属于什么类型?", "expected_source": "fracture_report.txt", "expected_keywords": ["桡骨", "Colles"]}
+{"question": "骨折后采用什么固定方式?", "expected_source": "fracture_report.txt", "expected_keywords": ["石膏", "复位"]}

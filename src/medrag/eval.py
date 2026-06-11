@@ -179,6 +179,12 @@ def main(argv: list[str] | None = None) -> int:
         help="LLM-as-judge 用的模型(none 则跳过该指标)",
     )
     parser.add_argument(
+        "--retrieval",
+        default="dense",
+        choices=["dense", "hybrid", "graph"],
+        help="检索方式(dense 纯向量;hybrid 向量+BM25 用 RRF 融合;graph 实体图谱多跳)",
+    )
+    parser.add_argument(
         "--tracer",
         default="none",
         choices=["none", "langfuse"],
@@ -187,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # 工厂函数从 cli 复用,避免重复
-    from .cli import _make_embedder, _make_llm, _make_store, _make_tracer
+    from .cli import _make_embedder, _make_llm, _make_retriever, _make_tracer
     from .loader import load_directory
 
     if not args.data.is_dir():
@@ -198,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     documents = load_directory(args.data)
-    store = _make_store(args.store, _make_embedder(args.embedder))
+    store = _make_retriever(args.retrieval, args.store, _make_embedder(args.embedder))
     tracer = _make_tracer(args.tracer)
     pipeline = RagPipeline(store, _make_llm(args.llm), tracer=tracer)
     pipeline.index(documents)

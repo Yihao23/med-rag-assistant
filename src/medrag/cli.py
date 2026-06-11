@@ -13,9 +13,11 @@ import sys
 from pathlib import Path
 
 from .embeddings import Embedder, HashingEmbedder, SentenceTransformerEmbedder
+from .graph import GraphRetriever
 from .llm import LLM, AnthropicLLM, EchoLLM, OpenAICompatLLM
 from .loader import load_directory
 from .pipeline import RagPipeline
+from .retrieval import BM25Retriever, HybridRetriever, Retriever
 from .store import InMemoryVectorStore, QdrantVectorStore
 from .tracing import LangfuseTracer, NullTracer, Tracer
 
@@ -54,6 +56,17 @@ def _make_tracer(name: str) -> Tracer:
     raise ValueError(f"未知 tracer:{name}")
 
 
+def _make_retriever(retrieval: str, store_name: str, embedder: Embedder) -> Retriever:
+    if retrieval == "graph":
+        return GraphRetriever()
+    dense = _make_store(store_name, embedder)
+    if retrieval == "dense":
+        return dense
+    if retrieval == "hybrid":
+        return HybridRetriever(dense=dense, sparse=BM25Retriever())
+    raise ValueError(f"未知 retrieval:{retrieval}")
+
+
 def _print_answer(answer) -> None:
     print("\n=== 答案 ===")
     print(answer.text)
@@ -88,6 +101,12 @@ def main(argv: list[str] | None = None) -> int:
         help="embedding 实现(hashing 零依赖、可离线)",
     )
     parser.add_argument(
+        "--retrieval",
+        default="dense",
+        choices=["dense", "hybrid", "graph"],
+        help="检索方式(dense 纯向量;hybrid 向量+BM25 用 RRF 融合;graph 实体图谱多跳)",
+    )
+    parser.add_argument(
         "--tracer",
         default="none",
         choices=["none", "langfuse"],
@@ -104,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"目录 {args.data} 里没有可加载的文档(支持 .txt/.md/.pdf)", file=sys.stderr)
         return 1
 
-    store = _make_store(args.store, _make_embedder(args.embedder))
+    store = _make_retriever(args.retrieval, args.store, _make_embedder(args.embedder))
     tracer = _make_tracer(args.tracer)
     pipeline = RagPipeline(store, _make_llm(args.llm), tracer=tracer)
     n_chunks = pipeline.index(documents)

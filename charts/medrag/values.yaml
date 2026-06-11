@@ -1,0 +1,28 @@
+# 默认值:离线演示配置(echo + hashing,无需 API key / 模型下载)。
+# 生产部署时 override:MEDRAG_LLM=anthropic / vllm,MEDRAG_EMBEDDER=sentence-transformers 等。
+replicaCount: 1
+
+image:
+  repository: medrag-api
+  tag: dev
+  # k3d 用 `k3d image import` 导入本地镜像,故不从 registry 拉取
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+env:
+  MEDRAG_LLM: echo
+  MEDRAG_EMBEDDER: hashing
+  MEDRAG_STORE: memory
+  MEDRAG_RETRIEVAL: hybrid
+  MEDRAG_REDACT: rule
+  MEDRAG_TRACER: none
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi

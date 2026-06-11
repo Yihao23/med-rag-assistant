@@ -12,8 +12,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      # 只装核心 + dev:测试用 fake 组件,不需要 embeddings 重依赖,也无需 API key
-      - run: pip install -e ".[dev,qdrant,vllm]"
+      # 只装核心 + dev + 轻量集成依赖:测试用 fake 组件,不需要 embeddings 重依赖,也无需 API key
+      - run: pip install -e ".[dev,qdrant,vllm,api]"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -q

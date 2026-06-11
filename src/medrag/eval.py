@@ -185,6 +185,12 @@ def main(argv: list[str] | None = None) -> int:
         help="检索方式(dense 纯向量;hybrid 向量+BM25 用 RRF 融合;graph 实体图谱多跳)",
     )
     parser.add_argument(
+        "--redact",
+        default="none",
+        choices=["none", "rule"],
+        help="摄入时 PII 脱敏(none 不脱敏;rule 正则规则,零依赖)",
+    )
+    parser.add_argument(
         "--tracer",
         default="none",
         choices=["none", "langfuse"],
@@ -193,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # 工厂函数从 cli 复用,避免重复
-    from .cli import _make_embedder, _make_llm, _make_retriever, _make_tracer
+    from .cli import _make_embedder, _make_llm, _make_redactor, _make_retriever, _make_tracer
     from .loader import load_directory
 
     if not args.data.is_dir():
@@ -204,6 +210,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     documents = load_directory(args.data)
+    redactor = _make_redactor(args.redact)
+    documents = {name: redactor.redact(text) for name, text in documents.items()}
     store = _make_retriever(args.retrieval, args.store, _make_embedder(args.embedder))
     tracer = _make_tracer(args.tracer)
     pipeline = RagPipeline(store, _make_llm(args.llm), tracer=tracer)

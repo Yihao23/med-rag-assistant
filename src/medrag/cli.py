@@ -16,6 +16,7 @@ from .embeddings import Embedder, HashingEmbedder, SentenceTransformerEmbedder
 from .graph import GraphRetriever
 from .llm import LLM, AnthropicLLM, EchoLLM, OpenAICompatLLM
 from .loader import load_directory
+from .pii import NullRedactor, Redactor, RuleRedactor
 from .pipeline import RagPipeline
 from .retrieval import BM25Retriever, HybridRetriever, Retriever
 from .store import InMemoryVectorStore, QdrantVectorStore
@@ -54,6 +55,14 @@ def _make_tracer(name: str) -> Tracer:
     if name == "langfuse":
         return LangfuseTracer()
     raise ValueError(f"未知 tracer:{name}")
+
+
+def _make_redactor(name: str) -> Redactor:
+    if name == "none":
+        return NullRedactor()
+    if name == "rule":
+        return RuleRedactor()
+    raise ValueError(f"未知 redact:{name}")
 
 
 def _make_retriever(retrieval: str, store_name: str, embedder: Embedder) -> Retriever:
@@ -107,6 +116,12 @@ def main(argv: list[str] | None = None) -> int:
         help="检索方式(dense 纯向量;hybrid 向量+BM25 用 RRF 融合;graph 实体图谱多跳)",
     )
     parser.add_argument(
+        "--redact",
+        default="none",
+        choices=["none", "rule"],
+        help="摄入时 PII 脱敏(none 不脱敏;rule 正则规则,零依赖)",
+    )
+    parser.add_argument(
         "--tracer",
         default="none",
         choices=["none", "langfuse"],
@@ -122,6 +137,9 @@ def main(argv: list[str] | None = None) -> int:
     if not documents:
         print(f"目录 {args.data} 里没有可加载的文档(支持 .txt/.md/.pdf)", file=sys.stderr)
         return 1
+
+    redactor = _make_redactor(args.redact)
+    documents = {name: redactor.redact(text) for name, text in documents.items()}
 
     store = _make_retriever(args.retrieval, args.store, _make_embedder(args.embedder))
     tracer = _make_tracer(args.tracer)

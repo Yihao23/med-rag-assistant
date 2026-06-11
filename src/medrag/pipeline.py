@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from .chunking import chunk_text
 from .llm import LLM
 from .store import SearchResult, VectorStore
+from .tracing import NullTracer, Tracer
 
 SYSTEM_PROMPT = (
     "你是一个严谨的医疗文档助手。只根据下面提供的【上下文】回答问题。"
@@ -31,9 +32,10 @@ def build_prompt(question: str, results: list[SearchResult]) -> str:
 
 
 class RagPipeline:
-    def __init__(self, store: VectorStore, llm: LLM) -> None:
+    def __init__(self, store: VectorStore, llm: LLM, tracer: Tracer | None = None) -> None:
         self._store = store
         self._llm = llm
+        self._tracer = tracer if tracer is not None else NullTracer()
 
     def index(self, documents: dict[str, str], *, size: int = 800, overlap: int = 100) -> int:
         """对 {文件名: 文本} 切块并写入向量库,返回写入的块数。"""
@@ -44,7 +46,17 @@ class RagPipeline:
         return len(all_chunks)
 
     def answer(self, question: str, *, k: int = 4) -> Answer:
-        results = self._store.search(question, k=k)
-        prompt = build_prompt(question, results)
-        text = self._llm.generate(system=SYSTEM_PROMPT, user=prompt)
-        return Answer(text=text, sources=results)
+        with self._tracer.span("rag.answer", input={"question": question, "k": k}) as root:
+            with self._tracer.span("search", input={"question": question, "k": k}) as span:
+                results = self._store.search(question, k=k)
+                span.update(output=[{"source": r.chunk.source, "score": r.score} for r in results])
+            prompt = build_prompt(question, results)
+
+            with self._tracer.span(
+                "generate", input={"system": SYSTEM_PROMPT, "user": prompt}
+            ) as span:
+                text = self._llm.generate(system=SYSTEM_PROMPT, user=prompt)
+                span.update(output=text)
+
+            root.update(output=text)
+            return Answer(text=text, sources=results)

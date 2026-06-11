@@ -178,10 +178,16 @@ def main(argv: list[str] | None = None) -> int:
         choices=["none", "anthropic", "vllm"],
         help="LLM-as-judge 用的模型(none 则跳过该指标)",
     )
+    parser.add_argument(
+        "--tracer",
+        default="none",
+        choices=["none", "langfuse"],
+        help="可观测性追踪(none 零依赖;langfuse 需自托管服务 + 环境变量 LANGFUSE_*)",
+    )
     args = parser.parse_args(argv)
 
     # 工厂函数从 cli 复用,避免重复
-    from .cli import _make_embedder, _make_llm, _make_store
+    from .cli import _make_embedder, _make_llm, _make_store, _make_tracer
     from .loader import load_directory
 
     if not args.data.is_dir():
@@ -193,13 +199,17 @@ def main(argv: list[str] | None = None) -> int:
 
     documents = load_directory(args.data)
     store = _make_store(args.store, _make_embedder(args.embedder))
-    pipeline = RagPipeline(store, _make_llm(args.llm))
+    tracer = _make_tracer(args.tracer)
+    pipeline = RagPipeline(store, _make_llm(args.llm), tracer=tracer)
     pipeline.index(documents)
 
     cases = load_eval_cases(args.eval_set)
     judge = _make_llm(args.judge) if args.judge != "none" else None
-    report = run_eval(pipeline, cases, k=args.k, judge=judge)
-    _print_report(report)
+    try:
+        report = run_eval(pipeline, cases, k=args.k, judge=judge)
+        _print_report(report)
+    finally:
+        tracer.flush()  # 确保缓冲的 trace 在进程退出前送达
     return 0
 
 

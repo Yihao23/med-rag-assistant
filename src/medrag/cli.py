@@ -17,6 +17,7 @@ from .llm import LLM, AnthropicLLM, EchoLLM, OpenAICompatLLM
 from .loader import load_directory
 from .pipeline import RagPipeline
 from .store import InMemoryVectorStore, QdrantVectorStore
+from .tracing import LangfuseTracer, NullTracer, Tracer
 
 
 def _make_embedder(name: str) -> Embedder:
@@ -43,6 +44,14 @@ def _make_store(name: str, embedder: Embedder):
     if name == "qdrant":
         return QdrantVectorStore(embedder)
     raise ValueError(f"未知 vector store:{name}")
+
+
+def _make_tracer(name: str) -> Tracer:
+    if name == "none":
+        return NullTracer()
+    if name == "langfuse":
+        return LangfuseTracer()
+    raise ValueError(f"未知 tracer:{name}")
 
 
 def _print_answer(answer) -> None:
@@ -78,6 +87,12 @@ def main(argv: list[str] | None = None) -> int:
         choices=["sentence-transformers", "hashing"],
         help="embedding 实现(hashing 零依赖、可离线)",
     )
+    parser.add_argument(
+        "--tracer",
+        default="none",
+        choices=["none", "langfuse"],
+        help="可观测性追踪(none 零依赖;langfuse 需自托管服务 + 环境变量 LANGFUSE_*)",
+    )
     args = parser.parse_args(argv)
 
     if not args.data.is_dir():
@@ -90,25 +105,29 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     store = _make_store(args.store, _make_embedder(args.embedder))
-    pipeline = RagPipeline(store, _make_llm(args.llm))
+    tracer = _make_tracer(args.tracer)
+    pipeline = RagPipeline(store, _make_llm(args.llm), tracer=tracer)
     n_chunks = pipeline.index(documents)
     print(f"已索引 {len(documents)} 个文档,共 {n_chunks} 个文本块。")
 
-    if args.question:
-        _print_answer(pipeline.answer(args.question, k=args.k))
-        return 0
+    try:
+        if args.question:
+            _print_answer(pipeline.answer(args.question, k=args.k))
+            return 0
 
-    # 交互模式
-    print("进入交互模式,输入问题(Ctrl-D 或空行退出)。")
-    while True:
-        try:
-            question = input("\n> ").strip()
-        except EOFError:
-            break
-        if not question:
-            break
-        _print_answer(pipeline.answer(question, k=args.k))
-    return 0
+        # 交互模式
+        print("进入交互模式,输入问题(Ctrl-D 或空行退出)。")
+        while True:
+            try:
+                question = input("\n> ").strip()
+            except EOFError:
+                break
+            if not question:
+                break
+            _print_answer(pipeline.answer(question, k=args.k))
+        return 0
+    finally:
+        tracer.flush()  # 确保缓冲的 trace 在进程退出前送达
 
 
 if __name__ == "__main__":

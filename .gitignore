@@ -22,3 +22,6 @@ htmlcov/
 # 环境与密钥
 .env
 .env.*
+
+# Rust(gateway)
+gateway/target/

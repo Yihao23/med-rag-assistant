@@ -19,6 +19,7 @@ from .loader import load_directory
 from .pii import NullRedactor, Redactor, RuleRedactor
 from .pipeline import RagPipeline
 from .retrieval import BM25Retriever, HybridRetriever, Retriever
+from .routing import RoutingLLM
 from .store import InMemoryVectorStore, QdrantVectorStore
 from .tracing import LangfuseTracer, NullTracer, Tracer
 
@@ -38,6 +39,9 @@ def _make_llm(name: str) -> LLM:
         return AnthropicLLM()
     if name == "vllm":
         return OpenAICompatLLM()
+    if name == "routing":
+        # edge-to-cloud:简单请求走本地 vLLM,复杂请求转云端 Claude
+        return RoutingLLM(edge=OpenAICompatLLM(), cloud=AnthropicLLM())
     raise ValueError(f"未知 llm:{name}")
 
 
@@ -93,8 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--llm",
         default="anthropic",
-        choices=["anthropic", "echo", "vllm"],
-        help="LLM 实现(echo 不调用真实模型)",
+        choices=["anthropic", "echo", "vllm", "routing"],
+        help="LLM 实现(echo 不调用真实模型;routing 简单走本地 vLLM、复杂转云端 Claude)",
     )
 
     parser.add_argument(
